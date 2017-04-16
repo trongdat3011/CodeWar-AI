@@ -176,16 +176,17 @@ int track(int current_id, int x, int y, int selfStable){
     }
     return dir;
 }
-bool nearStable(int x, int y){
+int nearStable(int x, int y){
+    int count  = 0;
     for(int i=0; i<num_direction; i++){
         int u = x + dr[i];
         int v = y + dc[i];
         cell temp;
         temp.row = u;
         temp.col = v;
-        if (inside(temp) && a[u][v] == 1) return true;
+        if (inside(temp) && a[u][v] == 1) count++;
     }
-    return false;
+    return count;
 }
 
 void solve(){
@@ -247,12 +248,14 @@ void solve(){
 
     //Move around - Tim 1 o khong phai unstable o border - neu co thi di den o gan nhat, neu khong thi di ve safety
     int minEmpty = INF;
+    int maxNear = 0;
     cell minCell;
     for(int i=0; i<num_row; i++)
         for(int j=0; j<num_col; j++)
             if (a[i][j] != 2 && a[i][j] !=1 && nearStable(i, j) ) {
-                if (dist[0][i][j][0] < minEmpty){
+                if ( (dist[0][i][j][0] < minEmpty) || (dist[0][i][j][0] == minEmpty && nearStable(i,j) > maxNear) ){
                     minEmpty = dist[0][i][j][0];
+                    maxNear = nearStable(i,j);
                     minCell.row = i;
                     minCell.col = j;
                 }
@@ -262,7 +265,7 @@ void solve(){
         return;
     }
 
-    if (minEmpty <= 4){
+    if (minEmpty <= 2){
         int dir = -1;
         if (dist[0][minCell.row][minCell.col][1] <= 4)
             dir = track(0, minCell.row, minCell.col, 1);
