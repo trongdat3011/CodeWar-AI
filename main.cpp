@@ -35,8 +35,10 @@ int trace[max_player][num_row][num_col][2]; //1 disable moving on self-stable --
 int distToSafety[max_player];
 int distToKillMe[max_player];
 int distToKillThem[max_player];
+cell killBlock[max_player];
 cell safeBlock[max_player];
 bool running = false;
+bool killing = false;
 
 //Shared variables for bfs-functions
 cell my_queue[num_col*num_row];
@@ -108,6 +110,9 @@ void getDirection(){
 bool inside(cell x){
     return (x.row >= 0 && x.row < num_row && x.col >= 0 && x.col < num_col);
 }
+bool inside(int x, int y){
+    return (x >= 0 && x < num_row && y >= 0 && y < num_col);
+}
 
 void bfs(int current_id, int selfStable){
     memset(visitted, false, sizeof(visitted));
@@ -167,6 +172,7 @@ void calculateDistanceToSafety(int current_id){
 }
 
 int track(int current_id, int x, int y, int selfStable){
+    if (!inside(x, y)) return -1;
     int dir = -1;
     while (trace[current_id][x][y][selfStable] != -1){
         // cout << x << " " << y << " " << trace[current_id][x][y] << endl;
@@ -203,17 +209,6 @@ void solve(){
         calculateDistanceToSafety(i);
         if (debugging) cout << "Dist to safety " << i << " " << distToSafety[i] << endl;
     }
-
-    if (running){
-        int dir = track(0, safeBlock[0].row, safeBlock[0].col, 0);
-        if (dir == -1){
-            running = false;
-        } else {
-            speakOutLoud(dir);
-            return;
-        }
-    }
-
     //For enemy - Trying to find my unstable
     for(int current_id  = 1; current_id < num_player; current_id++){
         distToKillMe[current_id] = INF;
@@ -230,21 +225,81 @@ void solve(){
             for(int j=0; j<num_col; j++)
                 if (a[i][j] == current_id*2 + 2)
                     if (dist[0][i][j][0] != -1)
-                        distToKillThem[current_id] = min(distToKillThem[current_id], dist[0][i][j][0]);
+                        if ( distToKillThem[current_id] > dist[0][i][j][0] ){
+                            distToKillThem[current_id] = dist[0][i][j][0];
+                            killBlock[current_id].row = i;
+                            killBlock[current_id].col = j;
+                        }
+                        
     }
 
+    //Check killing
+    if (killing){
+        if (distToKillThem[1] < distToSafety[1] && distToKillMe[1] > distToKillThem[1]){
+            int dir = track(0, killBlock[1].row, killBlock[1].col, 0);
+            if (dir != -1) {
+                speakOutLoud(dir);
+                return;
+            }
+        }
+        killing = false;
+        running = true;
+    }
+
+    //Check running
+    if (running){
+        int dir = track(0, safeBlock[0].row, safeBlock[0].col, 0);
+        if (dir == -1){
+            running = false;
+        } else {
+            speakOutLoud(dir);
+            return;
+        }
+    }
+
+    //Danger to go outside
+    if (a[ position[0].row ][ position[0].col ] == 1)
+        for(int current_id = 1; current_id < num_player; current_id++){
+            if (position[current_id].row != -1)
+                if (dist[0][ position[current_id].row ][ position[current_id].row ][0] <= 4){
+                    // cout << "Nguy hiem" << endl;
+                    for(int i=0; i<num_direction; i++)
+                        if (i != 3 - direction[0]){
+                            // cout << "Hey" << endl;
+                            int u = position[0].row + dr[i];
+                            int v = position[0].col + dc[i];
+                            if (a[u][v] == 1){
+                                // cout << "Xin" << endl;
+                                speakOutLoud(i);
+                                return;
+                            }
+                        }
+                }
+        }
+
+
+
     //Try Defend
-    // Need implementation
     for(int current_id  = 1; current_id < num_player; current_id++){
-        if (distToKillMe[current_id] <= distToSafety[0]){
+        if (distToKillMe[current_id] <= distToSafety[0]+2){
             running = true;
+            // cout << "chay" << endl;
             speakOutLoud(track(0, safeBlock[0].row, safeBlock[0].col, 0));
             return;
         }
     }
 
     //Try Offend
-    // Need implementation
+    // if (num_player == 2){
+    //     if (distToKillThem[1] < distToSafety[1] && distToKillMe[1] > distToKillThem[1]){
+    //         killing = true;
+    //         int dir = track(0, killBlock[1].row, killBlock[1].col, 0);
+    //         if (dir != -1) {
+    //             speakOutLoud(dir);
+    //             return;
+    //         }
+    //     }
+    // }
 
     //Move around - Tim 1 o khong phai unstable o border - neu co thi di den o gan nhat, neu khong thi di ve safety
     int minEmpty = INF;
