@@ -60,7 +60,7 @@ bool isBorder(int x, int y, int (&state)[num_row][num_col] ){
 }
 int evaluate(int state[num_row][num_col]){
     bool visited[num_row][num_col];
-    queue<pair<int, int> > q;
+    queue< pair< int, int> > q;
     int stable = 1, unstable = 2;
     int ans = 0, k = 0;
     memset(visited , false , sizeof visited);
@@ -81,7 +81,7 @@ int evaluate(int state[num_row][num_col]){
                 stableCount++;
     while (!q.empty()) {
         ans++;
-        pair<int, int> p = q.front();q.pop();
+        pair<int, int > p = q.front();q.pop();
         for (int i = 0; i < 4; i++) {
             pair<int , int > tmp = make_pair(p.first + dr[i] , p.second + dc[i]);
             if(inside(tmp) && !visited[tmp.first][tmp.second]) {
@@ -253,7 +253,8 @@ void solve(){
         speakOutLoud(track(0, minBlock.first, minBlock.second));
         return;
     }
-    vector< tuple< int, int, int, int > > moveList;
+    // vector< tuple< int, int, int, int > > moveList;
+    vector< pair< int, pair<int, pair< int, int> > > > moveList;
     moveList.clear();
     int x = position[0].first;
     int y = position[0].second;
@@ -310,13 +311,12 @@ void solve(){
             bfs(0, tuonglai, tuonglaiDirection);
             markPath(0, tuonglai);
             extractInformation(tuonglai);
-            moveList.push_back( make_tuple(danger, -evaluate(tuonglai), distToSafety, i ));
+            // moveList.push_back( make_tuple(danger, -evaluate(tuonglai), distToSafety, i ));
+            moveList.push_back(make_pair( danger, make_pair(-evaluate(tuonglai), make_pair(distToSafety, i))));
         }
     position[0] = make_pair(x,y);
     sort(moveList.begin(), moveList.end());
-    // for(int i=0; i<moveList.size(); i++)
-    //     cout << get<0>(moveList[i]) << " " << get<1>(moveList[i]) << " " << get<2>(moveList[i]) << " " << get<3>(moveList[i]) <<endl;
-    speakOutLoud(get<3>(moveList[0]));
+    speakOutLoud(moveList[0].second.second.second);
 }
 
 
