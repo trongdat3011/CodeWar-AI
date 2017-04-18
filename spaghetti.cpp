@@ -18,17 +18,16 @@ const int DOWN = 2;
 
 //State of the game
 int num_player, my_id, turn  = 0; 
-pair< int, int > position[max_player], futurePosition[; //Position of Players
+pair< int, int > position[max_player], tuonglaiPosition[max_player]; //Position of Players
 pair< int, int > lastPosition[max_player];
-int direction[max_player], futureDirection[max_player]; 
-int a[num_row][num_col], future[num_row][num_col], predict[num_row][num_col];
+int direction[max_player], tuonglaiDirection[max_player]; 
+int a[num_row][num_col], tuonglai[num_row][num_col], predict[num_row][num_col];
 pair< int, int > my_queue[num_col*num_row];
 bool visitted[num_row][num_col];
-int dist[max_player][num_row][num_col];  //0 enable moving on self-stable
+int dist[max_player][num_row][num_col];
+int trace[max_player][num_row][num_col]; //0 enable moving on self-stable
 int distToSafety;
 int distToKillMe;
-
-
 
 void speakOutLoud(int dir){
     string verbalDir;
@@ -49,6 +48,56 @@ bool inside(pair< int, int > x){
 }
 bool inside(int x, int y){
     return (x >= 0 && x < num_row && y >= 0 && y < num_col);
+}
+bool isBorder(int x, int y, int (&state)[num_row][num_col] ){
+    for(int i=0; i<num_direction; i++){
+        int u = x + dr[i];
+        int v = y + dc[i];
+        if (inside(u, v) && state[u][v] != 1)
+            return true;
+    }
+    return false;
+}
+int evaluate(int state[num_row][num_col]){
+    bool visited[num_row][num_col];
+    queue<pair<int, int> > q;
+    int stable = 1, unstable = 2;
+    int ans = 0, k = 0;
+    memset(visited , false , sizeof visited);
+
+    for (int i = 0; i < num_row; i++)
+        for (int j = 0; j < num_col; j++)
+            if (i == 0 || j == 0 || i == num_row - 1 || j == num_col - 1) {
+                k = state[i][j];
+                if (k != stable && k != unstable && !visited[i][j]) {
+                    visited[i][j] = true;
+                    q.push(make_pair(i, j));
+                }
+            }
+    int stableCount = 0;
+    for (int i = 0; i < num_row; i++)
+        for (int j = 0; j < num_col; j++)
+            if (state[i][j] == stable)
+                stableCount++;
+    while (!q.empty()) {
+        ans++;
+        pair<int, int> p = q.front();q.pop();
+        for (int i = 0; i < 4; i++) {
+            pair<int , int > tmp = make_pair(p.first + dr[i] , p.second + dc[i]);
+            if(inside(tmp) && !visited[tmp.first][tmp.second]) {
+                k = state[tmp.first][tmp.second];
+                if (k != stable && k != unstable) {
+                    visited[tmp.first][tmp.second] = true;
+                    q.push(tmp);
+                }
+            }
+
+
+        }
+    }
+
+    ans = 600 - ans - stableCount;
+    return ans;
 }
 void standardize(){
     for(int i=0; i<num_row; i++)
@@ -78,7 +127,6 @@ void standardize(){
 }
 
 void getDirection(){
-    cout << "fuck" << endl;
     for(int i=0; i<num_player; i++){
         if (turn == 1){
             direction[i] = -1;
@@ -106,7 +154,7 @@ void update(int (&state)[num_row][num_col], int id){
     }
 }
 
-void bfs(int current_id, int (&state) [num_row][num_col], int (&faceTo)[max_player] ){
+void bfs(int current_id, int (&state)[num_row][num_col], int (&faceTo)[max_player] ){
     
     memset(visitted, false, sizeof(visitted));
     int bot = -1;
@@ -131,84 +179,144 @@ void bfs(int current_id, int (&state) [num_row][num_col], int (&faceTo)[max_play
                 visitted[u][v] = true;
                 my_queue[++top] = make_pair(u, v);
                 dist[current_id][u][v] = cur_dist+1;
+                trace[current_id][u][v] = i;
             }
         }
     }
 
 }
-void extractInformation(){
-    
+void extractInformation(int (&state)[num_row][num_col]){
     distToSafety = INF;
     for(int i=0; i<num_row; i++)
         for(int j=0; j<num_col; j++)
-            if (a[i][j] == 1){
+            if (state[i][j] == 1){
                 if (dist[0][i][j] != -1){
-                    distToSafety = min(res, dist[0][i][j]);
+                    distToSafety = min(distToSafety, dist[0][i][j]);
                 }
             }
-    
     distToKillMe = INF;
     for(int i=0; i<num_row; i++)
         for(int j=0; j<num_col; j++)
-            if (a[i][j] == 2)
+            if (state[i][j] == 2)
                 if (dist[1][i][j] != -1)
                     distToKillMe = min(distToKillMe, dist[1][i][j]);
+    
 }
+int track(int current_id, int x, int y){
+    if (!inside(x, y)) return -1;
+    int dir = -1;
+    while (trace[current_id][x][y] != -1){
+        dir = trace[current_id][x][y];
+        x = x + dr[3 - dir];
+        y = y + dc[3 - dir];
+    }
+    return dir;
+}
+
+void markPath(int current_id, int (&state)[num_row][num_col]){
+    int minDist = INF;
+    pair < int, int > minBlock;
+    for(int i=0; i<num_row; i++)
+        for(int j=0; j<num_col; j++){
+            if (state[i][j] == 1)
+                if (dist[current_id][i][j] != -1 && dist[current_id][i][j] < minDist){
+                    minDist = dist[current_id][i][j];
+                    minBlock = make_pair(i,j);
+                }   
+        }
+    int x = minBlock.first;
+    int y = minBlock.second;
+    while (trace[current_id][x][y] != -1){
+        int dir = trace[current_id][x][y];
+        x = x + dr[3 - dir];
+        y = y + dc[3 - dir];
+        state[x][y] = 2;
+    }
+}
+
+
 void solve(){
+    if ( a[position[0].first][position[0].second] == 1 && !isBorder(position[0].first, position[0].second, a)){
+        memset(trace, -1, sizeof(trace));
+        bfs(0, a, direction);
+        int minDist = INF;
+        pair < int, int > minBlock;
+        for(int i=0; i<num_row; i++)
+            for(int j=0; j<num_col; j++){
+                if (isBorder(i, j, a)){
+                    if (dist[0][i][j] != -1 && dist[0][i][j] < minDist){
+                        minBlock = make_pair(i,j);
+                        minDist = dist[0][i][j];
+                    }   
+                }
+            }
+        speakOutLoud(track(0, minBlock.first, minBlock.second));
+        return;
+    }
+    vector< tuple< int, int, int, int > > moveList;
+    moveList.clear();
     int x = position[0].first;
     int y = position[0].second;
-    cout << direction[0] << endl;
     for(int i=0; i<num_direction; i++)
         if (i != 3-direction[0]){
             int u = x + dr[i];
             int v = y + dc[i];
-            if ( !inside(u,v) || a[u][v] == 2) continue; //Not a valid move;
+            if ( !inside(u,v) || a[u][v] == 2) continue; 
+            
+            position[0] = make_pair(u,v);
+            tuonglaiDirection[0] = i;
+            createState(tuonglai, a);
 
-            futureDirection[0] = i;
-            createState(future, a);
 
-            if (future[u][v] == 1){  
-                update(future, 0);
-            } else future[u][v] = 2;
-
-            //Doi phuong di chuyen
-            int ex = position[1].first;
-            int ey = position[1].second;
+            if (tuonglai[u][v] == 1){  
+                update(tuonglai, 0);
+            } else tuonglai[u][v] = 2;
 
             int danger = 0;
+            int ex = position[1].first;
+            int ey = position[1].second;
 
             for(int j=0; j<num_direction; j++)
                 if (j != 3-direction[1]){
                     int eu = ex + dr[j];
                     int ev = ey + dc[j];
-                    if ( !inside(eu,ev) || future[eu][ev] == 4 ) continue;
-
-                    futureDirection[1] = j;
-                    createState(predict, future);
+                    if ( !inside(eu,ev) || tuonglai[eu][ev] == 4 ) continue;
+                    
+                    position[1] = make_pair(eu, ev);
+                    tuonglaiDirection[1] = j;
+                    createState(predict, tuonglai);
 
 
                     if (predict[eu][ev] == 2){
-                        //No giet minh
                         danger++;
                         continue;
                     }
                     if ( predict[eu][ev] == 3) {
                         update(predict, 1);
                     } else predict[eu][ev] = 4;
-                    // cout << i << " " << j << endl;
 
                     memset(dist, -1, sizeof(dist));
-                    bfs(0, predict, futureDirection);
-                    bfs(1, predict, futureDirection);
-                    extractInformation();
-                    if (distToKillMe > distToSafety) {
+                    bfs(0, predict, tuonglaiDirection);
+                    bfs(1, predict, tuonglaiDirection);
+                    extractInformation(predict);
+                    if (distToKillMe < distToSafety) {
                         danger++;
                         break;
                     }
                 }
-            
+            position[1] = make_pair(ex, ey);
+            memset(dist, -1, sizeof(dist));
+            memset(trace, -1, sizeof(trace));
+            bfs(0, tuonglai, tuonglaiDirection);
+            markPath(0, tuonglai);
+            extractInformation(tuonglai);
+            moveList.push_back( make_tuple(danger, -evaluate(tuonglai), distToSafety, i ));
         }
-    cout << endl;
+    position[0] = make_pair(x,y);
+    sort(moveList.begin(), moveList.end());
+    // for(int i=0; i<moveList.size(); i++)
+    //     cout << get<0>(moveList[i]) << " " << get<1>(moveList[i]) << " " << get<2>(moveList[i]) << " " << get<3>(moveList[i]) <<endl;
+    speakOutLoud(get<3>(moveList[0]));
 }
 
 
