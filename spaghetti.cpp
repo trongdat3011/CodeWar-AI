@@ -300,7 +300,7 @@ void solve(){
                     bfs(0, predict, tuonglaiDirection);
                     bfs(1, predict, tuonglaiDirection);
                     extractInformation(predict);
-                    if (distToKillMe < distToSafety) {
+                    if (distToKillMe <= distToSafety) {
                         danger++;
                         break;
                     }
@@ -311,12 +311,24 @@ void solve(){
             bfs(0, tuonglai, tuonglaiDirection);
             markPath(0, tuonglai);
             extractInformation(tuonglai);
+            // cout << i << " " << danger << endl;
             // moveList.push_back( make_tuple(danger, -evaluate(tuonglai), distToSafety, i ));
             moveList.push_back(make_pair( danger, make_pair(-evaluate(tuonglai), make_pair(distToSafety, i))));
         }
     position[0] = make_pair(x,y);
     sort(moveList.begin(), moveList.end());
-    speakOutLoud(moveList[0].second.second.second);
+    if (moveList[0].first == 0)
+        speakOutLoud(moveList[0].second.second.second);
+    else {
+        int minDist = INF;
+        int dir;
+        for(int i=0; i<moveList.size(); i++)
+            if (moveList[i].second.second.first < minDist){
+                minDist = moveList[i].second.second.first;
+                dir = moveList[i].second.second.second;
+            }
+        speakOutLoud(dir);
+    }
 }
 
 
