@@ -1,0 +1,16 @@
+For nuoc di cua minh
+    invalid => continue;
+    neu o empty => chuyen thanh 2 <--
+    neu o unstable cua minh => Bad move;
+    neu o stable cua minh => update trang thai board (o nao unstable thanh stable het)
+    neu o stable cua doi phuong => do nothing
+    neu o unstable cua doi phuong => do nothing
+    For nuoc di cua doi phuong  
+        neu empty => chuyen thanh 4 <--
+        neu unstable cua no => continue; //no way enemy will make this move
+        neu stable cua no => update trang thai board (o nao unstable thanh stable het)
+        neu unstable cua minh => Bad move;
+        neu stable cua minh => do nothing
+            bfs()
+            neu state nay Safe 
+
