@@ -28,6 +28,8 @@ int dist[max_player][num_row][num_col];
 int trace[max_player][num_row][num_col]; //0 enable moving on self-stable
 int distToSafety;
 int distToKillMe;
+int distToMyHead;
+bool getOut = true;
 
 void speakOutLoud(int dir){
     string verbalDir;
@@ -42,6 +44,9 @@ void speakOutLoud(int dir){
                 break;
     }   
     cout << verbalDir << endl;
+}
+bool distToWall(int x, int y){
+    return min(x+1, 20-x)+min(y+1, 30-y);
 }
 bool inside(pair< int, int > x){
     return (x.first >= 0 && x.first < num_row && x.second >= 0 && x.second < num_col);
@@ -58,9 +63,9 @@ bool isBorder(int x, int y, int (&state)[num_row][num_col] ){
     }
     return false;
 }
-int evaluate(int state[num_row][num_col]){
+double evaluate(int state[num_row][num_col]){
     bool visited[num_row][num_col];
-    queue< pair< int, int> > q;
+    queue<pair<int, int> > q;
     int stable = 1, unstable = 2;
     int ans = 0, k = 0;
     memset(visited , false , sizeof visited);
@@ -71,6 +76,7 @@ int evaluate(int state[num_row][num_col]){
                 k = state[i][j];
                 if (k != stable && k != unstable && !visited[i][j]) {
                     visited[i][j] = true;
+                    //cout << i << " " << j << " " << k << endl;
                     q.push(make_pair(i, j));
                 }
             }
@@ -81,7 +87,7 @@ int evaluate(int state[num_row][num_col]){
                 stableCount++;
     while (!q.empty()) {
         ans++;
-        pair<int, int > p = q.front();q.pop();
+        pair<int, int> p = q.front();q.pop();
         for (int i = 0; i < 4; i++) {
             pair<int , int > tmp = make_pair(p.first + dr[i] , p.second + dc[i]);
             if(inside(tmp) && !visited[tmp.first][tmp.second]) {
@@ -95,8 +101,11 @@ int evaluate(int state[num_row][num_col]){
 
         }
     }
-
     ans = 600 - ans - stableCount;
+    for (int i = 0; i < num_row; i++)
+        for (int j = 0; j < num_col; j++)
+            if (visited[i][j] == false && state[i][j] == 3)
+                ans++;
     return ans;
 }
 void standardize(){
@@ -195,11 +204,18 @@ void extractInformation(int (&state)[num_row][num_col]){
                 }
             }
     distToKillMe = INF;
+    distToMyHead = INF;
     for(int i=0; i<num_row; i++)
-        for(int j=0; j<num_col; j++)
+        for(int j=0; j<num_col; j++){
             if (state[i][j] == 2)
                 if (dist[1][i][j] != -1)
                     distToKillMe = min(distToKillMe, dist[1][i][j]);
+            if (i == position[0].first && j == position[0].second )
+                if (dist[1][i][j] != -1)
+                    distToMyHead = min(distToMyHead, dist[1][i][j]);
+        }
+
+
     
 }
 int track(int current_id, int x, int y){
@@ -236,9 +252,30 @@ void markPath(int current_id, int (&state)[num_row][num_col]){
 
 
 void solve(){
+    if (getOut){
+        memset(trace, -1, sizeof(trace));
+        bfs(0, a, direction);
+        int minDist = INF;
+        pair < int, int > minBlock;
+        for(int i=0; i<num_row; i++)
+            for(int j=0; j<num_col; j++){
+                if (isBorder(i, j, a)){
+                    if (distToWall(i,j) < minDist){
+                        minBlock = make_pair(i,j);
+                        minDist = distToWall(i,j);
+                    }   
+                }
+            }
+        if (position[0] == minBlock) getOut = false;
+        else {
+            speakOutLoud(track(0, minBlock.first, minBlock.second));
+            return;
+        }
+    }
     if ( a[position[0].first][position[0].second] == 1 && !isBorder(position[0].first, position[0].second, a)){
         memset(trace, -1, sizeof(trace));
         bfs(0, a, direction);
+        
         int minDist = INF;
         pair < int, int > minBlock;
         for(int i=0; i<num_row; i++)
@@ -253,8 +290,8 @@ void solve(){
         speakOutLoud(track(0, minBlock.first, minBlock.second));
         return;
     }
-    // vector< tuple< int, int, int, int > > moveList;
-    vector< pair< int, pair<int, pair< int, int> > > > moveList;
+
+    vector< pair< int, pair<double, pair< int, int> > > > moveList;
     moveList.clear();
     int x = position[0].first;
     int y = position[0].second;
@@ -300,7 +337,7 @@ void solve(){
                     bfs(0, predict, tuonglaiDirection);
                     bfs(1, predict, tuonglaiDirection);
                     extractInformation(predict);
-                    if (distToKillMe <= distToSafety) {
+                    if (distToKillMe <= distToSafety+1 || distToMyHead <= distToSafety + 1 + min(1, distToSafety-1) ) {
                         danger++;
                         break;
                     }
@@ -311,12 +348,13 @@ void solve(){
             bfs(0, tuonglai, tuonglaiDirection);
             markPath(0, tuonglai);
             extractInformation(tuonglai);
-            // cout << i << " " << danger << endl;
-            // moveList.push_back( make_tuple(danger, -evaluate(tuonglai), distToSafety, i ));
-            moveList.push_back(make_pair( danger, make_pair(-evaluate(tuonglai), make_pair(distToSafety, i))));
+            moveList.push_back(make_pair( danger, make_pair(-evaluate(tuonglai)/distToSafety, make_pair(distToSafety, i))));
         }
     position[0] = make_pair(x,y);
     sort(moveList.begin(), moveList.end());
+    // for(int i=0; i<moveList.size(); i++){
+        // cout << moveList[i].first << " " << moveList[i].second.first << " " << moveList[i].second.second.first << " " << moveList[i].second.second.second << endl;
+    // }
     if (moveList[0].first == 0)
         speakOutLoud(moveList[0].second.second.second);
     else {
