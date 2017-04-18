@@ -171,7 +171,7 @@ void bfs(int current_id, int (&state)[num_row][num_col], int (&faceTo)[max_playe
 
         int cur_dist = dist[current_id][ x ][ y ];
         for(int i=0; i<num_direction; i++){
-            if (bot == 0  && i == 3-faceTo[current_id]) continue;
+            if (bot == 0  && i == 3-faceTo[current_id] && state[ my_queue[top].first ][ my_queue[top].second ] != current_id*2+1) continue;
             int u = x + dr[i];
             int v = y + dc[i];
 
@@ -259,7 +259,7 @@ void solve(){
     int x = position[0].first;
     int y = position[0].second;
     for(int i=0; i<num_direction; i++)
-        if (i != 3-direction[0]){
+        if (a[x][y] == 1 || i != 3-direction[0]){
             int u = x + dr[i];
             int v = y + dc[i];
             if ( !inside(u,v) || a[u][v] == 2) continue; 
@@ -278,7 +278,7 @@ void solve(){
             int ey = position[1].second;
 
             for(int j=0; j<num_direction; j++)
-                if (j != 3-direction[1]){
+                if (a[ex][ey] == 3 || j != 3-direction[1]){
                     int eu = ex + dr[j];
                     int ev = ey + dc[j];
                     if ( !inside(eu,ev) || tuonglai[eu][ev] == 4 ) continue;
